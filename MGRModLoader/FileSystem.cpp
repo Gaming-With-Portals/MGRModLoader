@@ -17,10 +17,15 @@ void FileSystem::Directory::clear()
 	if (!m_subdirs.empty())
 	{
 		for (auto& dir : m_subdirs)
+		{
 			dir->clear();
+			delete dir;
+		}
 
 		m_subdirs.clear();
 	}
+
+	m_filesize = 0l;
 }
 
 void FileSystem::Directory::calculateDirectorySize()
@@ -70,7 +75,7 @@ void FileSystem::Directory::scanFiles(bool bRecursive, const bool bInSubFolder, 
 			}
 			else
 			{
-				File file((Utils::String(m_path) / fd.cFileName).c_str(), fd.nFileSizeLow);
+				File file(m_path / fd.cFileName, fd.nFileSizeLow);
 				file.m_bInSubFolder = bInSubFolder;
 
 				if (flags & 1)
@@ -98,11 +103,15 @@ FileSystem::File* FileSystem::Directory::FindFile(const Utils::String& filepath)
 	if (filepath.empty())
 		return nullptr;
 
+	Utils::String path = filepath;
+
+	while (char* slash = path.strchr('/')) *slash = '\\';
+
 	// Now we need to make sure we'll only find the filename without any restrictions with folders that were pointed in the filepath parameter
 
-	const char* filename = filepath.c_str();
+	const char* filename = path.c_str();
 
-	if (const char *chr = filepath.strrchr('\\'); chr)
+	if (const char *chr = path.strrchr('\\'); chr)
 	{
 		filename = chr + 1;
 	}
@@ -115,7 +124,8 @@ FileSystem::File* FileSystem::Directory::FindFile(const Utils::String& filepath)
 
 	for (auto& subdir : m_subdirs)
 	{
-		return subdir->FindFile(filename);
+		if (File* file = subdir->FindFile(filename); file)
+			return file;
 	}
 
 	return nullptr;
